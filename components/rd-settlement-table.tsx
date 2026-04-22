@@ -16,31 +16,22 @@ export function RDSettlementTable({
   settlementTotal: number;
 }) {
   return (
-    <table className="stat-table">
+    <table className="mt-2 w-full border-collapse text-sm">
       <tbody>
         <tr>
-          <td>研发数据汇总</td>
-          <td className="num">{formatCurrency(rechargeTotal)}</td>
-        </tr>
-        <tr>
-          <td>未成年退款合计</td>
-          <td className="num">{formatCurrency(minorRefundTotal)}</td>
-        </tr>
-        <tr>
-          <td>测试费合计</td>
-          <td className="num">{formatCurrency(testFeeTotal)}</td>
-        </tr>
-        <tr>
-          <td>代金券合计</td>
-          <td className="num">{formatCurrency(voucherTotal)}</td>
-        </tr>
-        <tr>
-          <td>分成金额合计</td>
-          <td className="num">{formatCurrency(shareAmountTotal)}</td>
-        </tr>
-        <tr>
-          <td>结算金额合计</td>
-          <td className="num amount">{formatCurrency(settlementTotal)}</td>
+          <td className="border border-slate-200 bg-slate-50 px-2 py-2 font-semibold">数据汇总</td>
+          <td className="num border border-slate-200 px-2 py-2">{formatCurrency(rechargeTotal)}</td>
+          <td className="border border-slate-200 px-2 py-2" />
+          <td className="num border border-slate-200 px-2 py-2">{formatCurrency(minorRefundTotal)}</td>
+          <td className="num border border-slate-200 px-2 py-2">{formatCurrency(testFeeTotal)}</td>
+          <td className="num border border-slate-200 px-2 py-2">{formatCurrency(voucherTotal)}</td>
+          <td className="border border-slate-200 px-2 py-2" />
+          <td className="border border-slate-200 px-2 py-2" />
+          <td className="num border border-slate-200 px-2 py-2">{formatCurrency(shareAmountTotal)}</td>
+          <td className="border border-slate-200 px-2 py-2" />
+          <td className="num amount border border-slate-200 px-2 py-2">{formatCurrency(settlementTotal)}</td>
+          <td className="border border-slate-200 px-2 py-2" />
+          <td className="border border-slate-200 px-2 py-2" />
         </tr>
       </tbody>
     </table>

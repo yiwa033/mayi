@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AdminShell } from "@/components/admin-shell";
+import { AppNav } from "@/components/app-nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body><AdminShell>{children}</AdminShell></body>
+      <body>
+        <AppNav />
+        <main className="mx-auto w-full max-w-[1280px] px-4 py-4">{children}</main>
+      </body>
     </html>
   );
 }

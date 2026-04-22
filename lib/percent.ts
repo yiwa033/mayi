@@ -15,7 +15,15 @@ export function parsePercentInput(input: string | number): number {
   return parsed;
 }
 
+export function normalizePercentValue(input: string | number): number {
+  const value = parsePercentInput(input);
+  if (!Number.isFinite(value) || value < 0) return 0;
+  return value;
+}
+
 export function formatPercentDisplay(value: number): string {
   if (!Number.isFinite(value)) return "0%";
-  return `${(value * 100).toFixed(2).replace(/\.00$/, "")}%`;
+  return `${(value * 100)
+    .toFixed(4)
+    .replace(/\.?0+$/, "")}%`;
 }

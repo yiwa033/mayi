@@ -18,35 +18,24 @@ export function ChannelSettlementTable({
   settlementTotal: number;
 }) {
   return (
-    <table className="stat-table">
+    <table className="mt-2 w-full border-collapse text-sm">
       <tbody>
         <tr>
-          <td>渠道充值流水合计</td>
-          <td className="num">{formatCurrency(rechargeTotal)}</td>
-        </tr>
-        <tr>
-          <td>玩家退款合计</td>
-          <td className="num">{formatCurrency(refundTotal)}</td>
-        </tr>
-        <tr>
-          <td>测试费合计</td>
-          <td className="num">{formatCurrency(testFeeTotal)}</td>
-        </tr>
-        <tr>
-          <td>代金券合计</td>
-          <td className="num">{formatCurrency(voucherTotal)}</td>
-        </tr>
-        <tr>
-          <td>服务器费合计</td>
-          <td className="num">{formatCurrency(serverFeeTotal)}</td>
-        </tr>
-        <tr>
-          <td>渠道毛利合计</td>
-          <td className="num">{formatCurrency(grossTotal)}</td>
-        </tr>
-        <tr>
-          <td>结算金额合计</td>
-          <td className="num amount">{formatCurrency(settlementTotal)}</td>
+          <td className="border border-slate-200 bg-slate-50 px-2 py-2 font-semibold">数据汇总</td>
+          <td className="border border-slate-200 px-2 py-2" />
+          <td className="border border-slate-200 px-2 py-2" />
+          <td className="num border border-slate-200 px-2 py-2">{formatCurrency(rechargeTotal)}</td>
+          <td className="border border-slate-200 px-2 py-2" />
+          <td className="num border border-slate-200 px-2 py-2">{formatCurrency(refundTotal)}</td>
+          <td className="num border border-slate-200 px-2 py-2">{formatCurrency(testFeeTotal)}</td>
+          <td className="num border border-slate-200 px-2 py-2">{formatCurrency(voucherTotal)}</td>
+          <td className="num border border-slate-200 px-2 py-2">{formatCurrency(serverFeeTotal)}</td>
+          <td className="border border-slate-200 px-2 py-2" />
+          <td className="border border-slate-200 px-2 py-2" />
+          <td className="num border border-slate-200 px-2 py-2">{formatCurrency(grossTotal)}</td>
+          <td className="num amount border border-slate-200 px-2 py-2">{formatCurrency(settlementTotal)}</td>
+          <td className="border border-slate-200 px-2 py-2" />
+          <td className="border border-slate-200 px-2 py-2" />
         </tr>
       </tbody>
     </table>

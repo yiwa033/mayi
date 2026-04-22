@@ -7,11 +7,17 @@ import { PageHeader } from "@/components/page-header";
 import { RDSettlementTable } from "@/components/rd-settlement-table";
 import { SettlementSummary } from "@/components/settlement-summary";
 import { FilterToolbar } from "@/components/filter-toolbar";
-import { CollapsibleSection } from "@/components/collapsible-section";
+import { GameSelect } from "@/components/game-select";
+import { RowActions } from "@/components/row-actions";
 import { formatCurrency } from "@/lib/money";
 import { calcRDRow } from "@/lib/rd-calc";
 import { getLocal, removeLocal, setLocal } from "@/lib/storage";
-import { parsePercentInput } from "@/lib/percent";
+import {
+  formatPercentDisplay,
+  normalizePercentValue,
+  parsePercentInput,
+} from "@/lib/percent";
+import { normalizeMonthValue } from "@/lib/month";
 import { FlowType, GameItem, RDRecord } from "@/lib/types";
 
 const RD_KEY = "finance_rd_records";
@@ -21,7 +27,7 @@ const GAMES_KEY = "finance_games";
 const makeDemoRecords = (): RDRecord[] => [
   {
     id: "rd-demo-1",
-    month: "2026-10-01",
+    month: "2026-10",
     gameName: "末世王者（大熊）",
     recharge: 1000,
     discount: 0.01,
@@ -35,7 +41,7 @@ const makeDemoRecords = (): RDRecord[] => [
   },
   {
     id: "rd-demo-2",
-    month: "2026-12-01",
+    month: "2026-12",
     gameName: "末世王者（B站）",
     recharge: 1000,
     discount: 0.01,
@@ -80,7 +86,47 @@ export default function RDPage() {
       setRecords(demo);
       setLocal(RD_KEY, demo);
     } else {
-      setRecords(savedRecords);
+      const normalized = savedRecords.map((row) => {
+        const base = {
+          ...row,
+          month: normalizeMonthValue(row.month),
+          channelFeeRate: normalizePercentValue(row.channelFeeRate),
+          withholdingTaxRate: normalizePercentValue(row.withholdingTaxRate),
+          shareRatio: normalizePercentValue(row.shareRatio),
+        };
+        if (row.id === "rd-demo-1") {
+          return {
+            ...base,
+            month: "2026-10",
+            gameName: "末世王者（大熊）",
+            recharge: 1000,
+            discount: 0.01,
+            minorRefund: 0,
+            testFee: 0,
+            voucher: 0,
+            channelFeeRate: 0.05,
+            withholdingTaxRate: 0,
+            shareRatio: 0.5,
+          };
+        }
+        if (row.id === "rd-demo-2") {
+          return {
+            ...base,
+            month: "2026-12",
+            gameName: "末世王者（B站）",
+            recharge: 1000,
+            discount: 0.01,
+            minorRefund: 0,
+            testFee: 0,
+            voucher: 0,
+            channelFeeRate: 0.05,
+            withholdingTaxRate: 0,
+            shareRatio: 0.5,
+          };
+        }
+        return base;
+      });
+      setRecords(normalized);
     }
     setGames(getLocal<GameItem[]>(GAMES_KEY, []));
     setPrepayment(getLocal<number>(PREPAYMENT_KEY, 6368.25));
@@ -97,7 +143,7 @@ export default function RDPage() {
   const filtered = useMemo(
     () =>
       records.filter((item) => {
-        const hitMonth = monthFilter ? item.month.includes(monthFilter) : true;
+        const hitMonth = monthFilter ? item.month === monthFilter : true;
         const hitGame = gameFilter ? item.gameName === gameFilter : true;
         return hitMonth && hitGame;
       }),
@@ -122,7 +168,8 @@ export default function RDPage() {
     setRecords((prev) =>
       prev.map((row) => {
         if (row.id !== id) return row;
-        if (field === "month" || field === "gameName" || field === "note") return { ...row, [field]: value };
+        if (field === "month") return { ...row, month: normalizeMonthValue(value) };
+        if (field === "gameName" || field === "note") return { ...row, [field]: value };
         if (field === "channelFeeRate" || field === "withholdingTaxRate" || field === "shareRatio") {
           return { ...row, [field]: parsePercentInput(value) };
         }
@@ -136,20 +183,28 @@ export default function RDPage() {
       <PageHeader title="研发对账" description="上方筛选 + 可编辑表格 + 下方汇总结算" />
 
       <FilterToolbar>
-        <input className="field" type="month" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} />
-        <input className="field" list="rd-games" placeholder="游戏筛选" value={gameFilter} onChange={(e) => setGameFilter(e.target.value)} />
-        <datalist id="rd-games">{games.map((g) => <option key={g.id} value={g.name} />)}</datalist>
-        <select className="field" value={quickDiscount} onChange={(e) => setQuickDiscount(e.target.value)}>
+        <input className="field" title="月份筛选" type="month" value={monthFilter} onChange={(e) => setMonthFilter(normalizeMonthValue(e.target.value))} />
+        <GameSelect value={gameFilter} games={games} onChange={setGameFilter} placeholder="游戏筛选" title="游戏筛选" />
+        <select className="field" aria-label="折扣快捷选择" title="折扣快捷选择" value={quickDiscount} onChange={(e) => setQuickDiscount(e.target.value)}>
           <option value="0.05">折扣 0.05</option><option value="0.01">折扣 0.01</option><option value="0">自定义</option>
         </select>
-        <select className="field" value={flowType} onChange={(e) => setFlowType(e.target.value as FlowType)}>
+        <select className="field" aria-label="流水类型" title="流水类型" value={flowType} onChange={(e) => setFlowType(e.target.value as FlowType)}>
           <option value="raw">原始流水</option><option value="discounted">折后流水</option>
         </select>
-        <input className="field num" value={prepayment} onChange={(e) => setPrepayment(Number(e.target.value) || 0)} placeholder="预付款余额" />
+        <input className="field num" title="预付款余额" value={prepayment} onChange={(e) => setPrepayment(Number(e.target.value) || 0)} placeholder="预付款余额" />
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => setRecords((prev) => [...prev, emptyRecord({ month: monthFilter, gameName: gameFilter, discount: Number(quickDiscount) || 0.05 })])}
+          onClick={() =>
+            setRecords((prev) => [
+              ...prev,
+              emptyRecord({
+                month: normalizeMonthValue(monthFilter),
+                gameName: gameFilter,
+                discount: Number(quickDiscount) || 0.05,
+              }),
+            ])
+          }
         >
           新增一行
         </button>
@@ -170,58 +225,59 @@ export default function RDPage() {
         header={
           <tr>
             {["月份", "游戏名称", "充值流水", "折扣", "未成年退款", "测试费", "代金券", "通道费", "代扣税率", "分成金额", "分成比例", "结算金额", "备注", "操作"].map((h) => (
-              <th key={h}>{h}</th>
+              <th key={h} className={h === "操作" ? "op-col op-col-narrow" : ""}>
+                {h}
+              </th>
             ))}
           </tr>
         }
       >
         {rows.map(({ item, calc }) => (
           <tr key={item.id}>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1" value={item.month} onChange={(e) => setField(item.id, "month", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1" list="rd-games" value={item.gameName} onChange={(e) => setField(item.id, "gameName", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.recharge} onChange={(e) => setField(item.id, "recharge", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.discount} onChange={(e) => setField(item.id, "discount", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.minorRefund} onChange={(e) => setField(item.id, "minorRefund", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.testFee} onChange={(e) => setField(item.id, "testFee", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.voucher} onChange={(e) => setField(item.id, "voucher", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.channelFeeRate} onChange={(e) => setField(item.id, "channelFeeRate", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.withholdingTaxRate} onChange={(e) => setField(item.id, "withholdingTaxRate", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1" title="月份" type="month" value={normalizeMonthValue(item.month)} onChange={(e) => setField(item.id, "month", e.target.value)} /></td>
+            <td>
+              <GameSelect
+                value={item.gameName}
+                games={games}
+                onChange={(next) => setField(item.id, "gameName", next)}
+                title="游戏名称"
+              />
+            </td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="充值流水" value={item.recharge} onChange={(e) => setField(item.id, "recharge", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="折扣" value={item.discount} onChange={(e) => setField(item.id, "discount", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="未成年退款" value={item.minorRefund} onChange={(e) => setField(item.id, "minorRefund", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="测试费" value={item.testFee} onChange={(e) => setField(item.id, "testFee", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="代金券" value={item.voucher} onChange={(e) => setField(item.id, "voucher", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="通道费率" value={formatPercentDisplay(item.channelFeeRate)} onChange={(e) => setField(item.id, "channelFeeRate", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="代扣税率" value={formatPercentDisplay(item.withholdingTaxRate)} onChange={(e) => setField(item.id, "withholdingTaxRate", e.target.value)} /></td>
             <td className="num">{formatCurrency(calc.shareAmount)}</td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.shareRatio} onChange={(e) => setField(item.id, "shareRatio", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="分成比例" value={formatPercentDisplay(item.shareRatio)} onChange={(e) => setField(item.id, "shareRatio", e.target.value)} /></td>
             <td className="num amount">{formatCurrency(calc.settlementAmount)}</td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1" value={item.note} onChange={(e) => setField(item.id, "note", e.target.value)} /></td>
-            <td className="op-col">
-              <button type="button" className="btn btn-sm" onClick={() => setRecords((prev) => [...prev, { ...item, id: crypto.randomUUID() }])}>复制一行</button>
-              <button type="button" className="btn btn-danger btn-sm ml-1" onClick={() => window.confirm("确认删除该行吗？") && setRecords((prev) => prev.filter((r) => r.id !== item.id))}>删除一行</button>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1" title="备注" value={item.note} onChange={(e) => setField(item.id, "note", e.target.value)} /></td>
+            <td className="op-col op-col-narrow">
+              <RowActions
+                onCopy={() => setRecords((prev) => [...prev, { ...item, id: crypto.randomUUID() }])}
+                onDelete={() => window.confirm("确认删除该行吗？") && setRecords((prev) => prev.filter((r) => r.id !== item.id))}
+              />
             </td>
           </tr>
         ))}
       </EditableTable>
 
-      <div className="summary-grid">
-        <section className="panel">
-          <div className="panel-title">数据汇总</div>
-          <div className="collapsible-body">
-            <RDSettlementTable
-              rechargeTotal={totals.recharge}
-              minorRefundTotal={totals.minorRefund}
-              testFeeTotal={totals.testFee}
-              voucherTotal={totals.voucher}
-              shareAmountTotal={totals.shareAmount}
-              settlementTotal={totals.settlement}
-            />
-          </div>
-        </section>
-        <section className="panel">
-          <div className="panel-title">结算区</div>
-          <div className="collapsible-body">
-            <SettlementSummary actualSettlement={totals.settlement} prepayment={prepayment} />
-          </div>
-        </section>
-      </div>
-      <CollapsibleSection title="附加说明" defaultOpen={false}>
-        <p className="page-desc">预留给后续高级筛选、结算说明或备注区扩展。</p>
-      </CollapsibleSection>
+      <RDSettlementTable
+        rechargeTotal={totals.recharge}
+        minorRefundTotal={totals.minorRefund}
+        testFeeTotal={totals.testFee}
+        voucherTotal={totals.voucher}
+        shareAmountTotal={totals.shareAmount}
+        settlementTotal={totals.settlement}
+      />
+      <section className="panel">
+        <div className="panel-title">结算区</div>
+        <div className="collapsible-body">
+          <SettlementSummary actualSettlement={totals.settlement} prepayment={prepayment} />
+        </div>
+      </section>
     </div>
   );
 }

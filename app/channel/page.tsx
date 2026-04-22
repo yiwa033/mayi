@@ -6,11 +6,17 @@ import { ChannelSettlementTable } from "@/components/channel-settlement-table";
 import { EditableTable } from "@/components/editable-table";
 import { PageHeader } from "@/components/page-header";
 import { FilterToolbar } from "@/components/filter-toolbar";
-import { CollapsibleSection } from "@/components/collapsible-section";
+import { GameSelect } from "@/components/game-select";
+import { RowActions } from "@/components/row-actions";
 import { formatCurrency } from "@/lib/money";
-import { parsePercentInput } from "@/lib/percent";
+import {
+  formatPercentDisplay,
+  normalizePercentValue,
+  parsePercentInput,
+} from "@/lib/percent";
 import { calcChannelRow } from "@/lib/channel-calc";
 import { getLocal, removeLocal, setLocal } from "@/lib/storage";
+import { normalizeMonthValue } from "@/lib/month";
 import { ChannelRecord, FlowType, GameItem } from "@/lib/types";
 
 const CHANNEL_KEY = "finance_channel_records";
@@ -42,7 +48,13 @@ export default function ChannelPage() {
   const [flowType, setFlowType] = useState<FlowType>("discounted");
 
   useEffect(() => {
-    setRecords(getLocal<ChannelRecord[]>(CHANNEL_KEY, []));
+    const normalized = getLocal<ChannelRecord[]>(CHANNEL_KEY, []).map((row) => ({
+      ...row,
+      month: normalizeMonthValue(row.month),
+      channelFeeRate: normalizePercentValue(row.channelFeeRate),
+      rdShareRatio: normalizePercentValue(row.rdShareRatio),
+    }));
+    setRecords(normalized);
     setGames(getLocal<GameItem[]>(GAMES_KEY, []));
   }, []);
 
@@ -53,7 +65,7 @@ export default function ChannelPage() {
   const filtered = useMemo(
     () =>
       records.filter((item) => {
-        const hitMonth = monthFilter ? item.month.includes(monthFilter) : true;
+        const hitMonth = monthFilter ? item.month === monthFilter : true;
         const hitGame = gameFilter ? item.gameName === gameFilter : true;
         const hitChannel = channelFilter ? item.channelName.includes(channelFilter) : true;
         return hitMonth && hitGame && hitChannel;
@@ -88,7 +100,10 @@ export default function ChannelPage() {
     setRecords((prev) =>
       prev.map((row) => {
         if (row.id !== id) return row;
-        if (field === "month" || field === "channelName" || field === "gameName" || field === "note") {
+        if (field === "month") {
+          return { ...row, month: normalizeMonthValue(value) };
+        }
+        if (field === "channelName" || field === "gameName" || field === "note") {
           return { ...row, [field]: value };
         }
         if (field === "channelFeeRate" || field === "rdShareRatio") {
@@ -104,14 +119,13 @@ export default function ChannelPage() {
       <PageHeader title="渠道对账" description="结构与研发页一致，先保障录入与计算" />
 
       <FilterToolbar>
-        <input className="field" type="month" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} />
-        <input className="field" list="channel-games" placeholder="游戏筛选" value={gameFilter} onChange={(e) => setGameFilter(e.target.value)} />
-        <input className="field" placeholder="渠道名称筛选" value={channelFilter} onChange={(e) => setChannelFilter(e.target.value)} />
-        <datalist id="channel-games">{games.map((g) => <option key={g.id} value={g.name} />)}</datalist>
-        <select className="field" value={quickDiscount} onChange={(e) => setQuickDiscount(e.target.value)}>
+        <input className="field" title="月份筛选" type="month" value={monthFilter} onChange={(e) => setMonthFilter(normalizeMonthValue(e.target.value))} />
+        <GameSelect value={gameFilter} games={games} onChange={setGameFilter} placeholder="游戏筛选" title="游戏筛选" />
+        <input className="field" title="渠道名称筛选" placeholder="渠道名称筛选" value={channelFilter} onChange={(e) => setChannelFilter(e.target.value)} />
+        <select className="field" aria-label="折扣快捷选择" title="折扣快捷选择" value={quickDiscount} onChange={(e) => setQuickDiscount(e.target.value)}>
           <option value="0.05">折扣 0.05</option><option value="0.01">折扣 0.01</option><option value="0">自定义</option>
         </select>
-        <select className="field" value={flowType} onChange={(e) => setFlowType(e.target.value as FlowType)}>
+        <select className="field" aria-label="流水类型" title="流水类型" value={flowType} onChange={(e) => setFlowType(e.target.value as FlowType)}>
           <option value="raw">原始流水</option><option value="discounted">折后流水</option>
         </select>
         <button
@@ -121,7 +135,7 @@ export default function ChannelPage() {
             setRecords((prev) => [
               ...prev,
               emptyRecord({
-                month: monthFilter,
+                month: normalizeMonthValue(monthFilter),
                 channelName: channelFilter,
                 gameName: gameFilter,
                 discount: Number(quickDiscount) || 0.05,
@@ -164,52 +178,55 @@ export default function ChannelPage() {
               "备注",
               "操作",
             ].map((h) => (
-              <th key={h}>{h}</th>
+              <th key={h} className={h === "操作" ? "op-col op-col-narrow" : ""}>
+                {h}
+              </th>
             ))}
           </tr>
         }
       >
         {rows.map(({ item, calc }) => (
           <tr key={item.id}>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1" value={item.month} onChange={(e) => setField(item.id, "month", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1" value={item.channelName} onChange={(e) => setField(item.id, "channelName", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1" list="channel-games" value={item.gameName} onChange={(e) => setField(item.id, "gameName", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.recharge} onChange={(e) => setField(item.id, "recharge", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.discount} onChange={(e) => setField(item.id, "discount", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.playerRefund} onChange={(e) => setField(item.id, "playerRefund", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.testFee} onChange={(e) => setField(item.id, "testFee", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.voucher} onChange={(e) => setField(item.id, "voucher", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.serverFee} onChange={(e) => setField(item.id, "serverFee", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.channelFeeRate} onChange={(e) => setField(item.id, "channelFeeRate", e.target.value)} /></td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" value={item.rdShareRatio} onChange={(e) => setField(item.id, "rdShareRatio", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1" title="月份" type="month" value={normalizeMonthValue(item.month)} onChange={(e) => setField(item.id, "month", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1" title="渠道名称" value={item.channelName} onChange={(e) => setField(item.id, "channelName", e.target.value)} /></td>
+            <td>
+              <GameSelect
+                value={item.gameName}
+                games={games}
+                onChange={(next) => setField(item.id, "gameName", next)}
+                title="游戏名称"
+              />
+            </td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="充值流水" value={item.recharge} onChange={(e) => setField(item.id, "recharge", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="折扣" value={item.discount} onChange={(e) => setField(item.id, "discount", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="玩家退款" value={item.playerRefund} onChange={(e) => setField(item.id, "playerRefund", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="测试费" value={item.testFee} onChange={(e) => setField(item.id, "testFee", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="代金券" value={item.voucher} onChange={(e) => setField(item.id, "voucher", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="服务器费" value={item.serverFee} onChange={(e) => setField(item.id, "serverFee", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="通道费率" value={formatPercentDisplay(item.channelFeeRate)} onChange={(e) => setField(item.id, "channelFeeRate", e.target.value)} /></td>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1 num" title="研发分成比例" value={formatPercentDisplay(item.rdShareRatio)} onChange={(e) => setField(item.id, "rdShareRatio", e.target.value)} /></td>
             <td className="num">{formatCurrency(calc.channelGrossProfit)}</td>
             <td className="num amount">{formatCurrency(calc.settlementAmount)}</td>
-            <td><input className="field h-[30px] w-full rounded-[4px] px-1" value={item.note} onChange={(e) => setField(item.id, "note", e.target.value)} /></td>
-            <td className="op-col">
-              <button type="button" className="btn btn-sm" onClick={() => setRecords((prev) => [...prev, { ...item, id: crypto.randomUUID() }])}>复制一行</button>
-              <button type="button" className="btn btn-danger btn-sm ml-1" onClick={() => window.confirm("确认删除该行吗？") && setRecords((prev) => prev.filter((r) => r.id !== item.id))}>删除一行</button>
+            <td><input className="field h-[30px] w-full rounded-[4px] px-1" title="备注" value={item.note} onChange={(e) => setField(item.id, "note", e.target.value)} /></td>
+            <td className="op-col op-col-narrow">
+              <RowActions
+                onCopy={() => setRecords((prev) => [...prev, { ...item, id: crypto.randomUUID() }])}
+                onDelete={() => window.confirm("确认删除该行吗？") && setRecords((prev) => prev.filter((r) => r.id !== item.id))}
+              />
             </td>
           </tr>
         ))}
       </EditableTable>
 
-      <section className="panel">
-        <div className="panel-title">数据汇总</div>
-        <div className="collapsible-body">
-          <ChannelSettlementTable
-            rechargeTotal={totals.recharge}
-            refundTotal={totals.refund}
-            testFeeTotal={totals.testFee}
-            voucherTotal={totals.voucher}
-            serverFeeTotal={totals.serverFee}
-            grossTotal={totals.gross}
-            settlementTotal={totals.settlement}
-          />
-        </div>
-      </section>
-      <CollapsibleSection title="附加说明" defaultOpen={false}>
-        <p className="page-desc">预留渠道汇总明细、备注信息等扩展区。</p>
-      </CollapsibleSection>
+      <ChannelSettlementTable
+        rechargeTotal={totals.recharge}
+        refundTotal={totals.refund}
+        testFeeTotal={totals.testFee}
+        voucherTotal={totals.voucher}
+        serverFeeTotal={totals.serverFee}
+        grossTotal={totals.gross}
+        settlementTotal={totals.settlement}
+      />
     </div>
   );
 }
